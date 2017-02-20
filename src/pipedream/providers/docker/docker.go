@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"pipedream/config"
+	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
 
 type Docker struct {
 	client *docker.Client
+	conf   config.Config
 }
 
-func NewProvider() (Docker, error) {
+func NewProvider(conf config.Config) (Docker, error) {
 	// Try to load client from env first, then try unix socket
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -23,6 +26,7 @@ func NewProvider() (Docker, error) {
 	}
 	return Docker{
 		client: client,
+		conf:   conf,
 	}, err
 }
 
@@ -99,9 +103,33 @@ func (p Docker) createContainer(org, repo, branch string) (*docker.Container, er
 		Cmd:          []string{branch},
 	}
 
+	// get repo configuration (if exists)
+	var repoConf *config.Repo
+	repoName := fmt.Sprintf("%s/%s", strings.ToLower(org), strings.ToLower(repo))
+	for name, repository := range p.conf.Repository {
+		if strings.ToLower(name) == repoName {
+			repoConf = repository
+			break
+		}
+	}
+
+	// default restart policy
+	restart := docker.RestartPolicy{
+		Name: "no",
+	}
+	// if this branch is AlwaysOn, set policy accordingly
+	for _, rname := range repoConf.AlwaysOn {
+		if branch == rname {
+			restart.Name = "on-failure"
+			restart.MaximumRetryCount = 10
+			break
+		}
+	}
+
 	contHostConfig := docker.HostConfig{
 		PublishAllPorts: true,
 		Privileged:      true,
+		RestartPolicy:   restart,
 	}
 	opts := docker.CreateContainerOptions{Name: container_id, Config: &containerConfig, HostConfig: &contHostConfig}
 	return p.client.CreateContainer(opts)

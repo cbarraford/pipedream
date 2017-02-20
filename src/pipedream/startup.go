@@ -26,7 +26,7 @@ func main() {
 	log.Printf("Config: %+v", conf)
 
 	// TODO: make this configurable (pick own provider)
-	provider, err := docker.NewProvider()
+	provider, err := docker.NewProvider(conf)
 	if err != nil {
 		panic(err)
 	}
