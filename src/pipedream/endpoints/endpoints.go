@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"pipedream/config"
 	"pipedream/providers"
 )
 
@@ -16,14 +17,17 @@ type Handler struct {
 	lastRequest LastRequest
 }
 
-func NewHandler(idle time.Duration, provider providers.Provider) *gin.Engine {
+func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	r := gin.Default()
+
+	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
 
 	handler := Handler{
 		provider: provider,
 		lastRequest: LastRequest{
 			idle:  idle,
 			repos: make(map[string]time.Time),
+			conf:  conf,
 		},
 	}
 

@@ -3,6 +3,7 @@ package endpoints
 import (
 	"fmt"
 	"log"
+	"pipedream/config"
 	"pipedream/providers"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 type LastRequest struct {
 	repos map[string]time.Time
 	idle  time.Duration
+	conf  config.Config
 }
 
 func (r *LastRequest) keyify(org, repo, branch string) string {
@@ -29,9 +31,9 @@ func (r *LastRequest) Remove(org, repo, branch string) {
 }
 
 func (r *LastRequest) StartTicker(provider providers.Provider) {
-	ticker := time.NewTicker(time.Second * 60)
+	ticker := time.NewTicker(time.Second * 5)
 	go func() {
-		for t := range ticker.C {
+		for _ = range ticker.C {
 			stale := r.GetStaleApps()
 			for _, app := range stale {
 				org, repo, branch := app[0], app[1], app[2]
@@ -49,9 +51,25 @@ func (r *LastRequest) StartTicker(provider providers.Provider) {
 func (r *LastRequest) GetStaleApps() [][]string {
 	stale := make([][]string, 0)
 	for repo, lastRequest := range r.repos {
+		// skip apps that are "alwaysOn"
+		parts := strings.Split(repo, " ")
+		org, repo, branch := parts[0], parts[1], parts[2]
+		repoConf, ok := r.conf.GetRepo(org, repo)
+		if ok {
+			on := false
+			for _, alwaysOn := range repoConf.AlwaysOn {
+				if alwaysOn == branch {
+					on = true
+				}
+			}
+			if on {
+				continue
+			}
+		}
+
 		duration := time.Since(lastRequest)
 		if duration > r.idle {
-			stale = append(stale, strings.Split(repo, " "))
+			stale = append(stale, parts)
 		}
 	}
 	return stale

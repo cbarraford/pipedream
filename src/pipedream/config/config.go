@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	gcfg "gopkg.in/gcfg.v1"
@@ -29,6 +31,16 @@ type Config struct {
 		GithubToken  string
 	}
 	Repository map[string]*Repo
+}
+
+func (c Config) GetRepo(org, repo string) (*Repo, bool) {
+	repoName := fmt.Sprintf("%s/%s", strings.ToLower(org), strings.ToLower(repo))
+	for name, repository := range c.Repository {
+		if strings.ToLower(name) == repoName {
+			return repository, true
+		}
+	}
+	return &Repo{}, false
 }
 
 // Reads info from config file

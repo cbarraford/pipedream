@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/url"
 	"pipedream/config"
-	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -95,14 +94,7 @@ func (p Docker) containerName(org, repo, branch string) string {
 
 func (p Docker) createContainer(org, repo, branch string) (*docker.Container, error) {
 	// get repo configuration (if exists)
-	var repoConf *config.Repo
-	repoName := fmt.Sprintf("%s/%s", strings.ToLower(org), strings.ToLower(repo))
-	for name, repository := range p.conf.Repository {
-		if strings.ToLower(name) == repoName {
-			repoConf = repository
-			break
-		}
-	}
+	repoConf, _ := p.conf.GetRepo(org, repo)
 
 	container_id := p.containerName(org, repo, branch)
 	containerConfig := docker.Config{

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"time"
 
 	"pipedream/config"
 	"pipedream/endpoints"
@@ -32,11 +31,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	idle, err := time.ParseDuration(conf.General.IdleShutdown.String())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	r := endpoints.NewHandler(idle, provider)
+	r := endpoints.NewHandler(conf, provider)
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
