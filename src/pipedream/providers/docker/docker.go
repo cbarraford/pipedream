@@ -26,11 +26,11 @@ func NewProvider() (Docker, error) {
 	}, err
 }
 
-func (p *Docker) Name() string {
+func (p Docker) Name() string {
 	return "docker"
 }
 
-func (p *Docker) Start(org, repo, branch string) error {
+func (p Docker) Start(org, repo, branch string) error {
 	var err error
 	container, ok := p.getContainer(org, repo, branch)
 	if !ok {
@@ -50,11 +50,11 @@ func (p *Docker) Start(org, repo, branch string) error {
 	return nil
 }
 
-func (p *Docker) Stop(org, repo, branch string) error {
+func (p Docker) Stop(org, repo, branch string) error {
 	return p.removeContainer(org, repo, branch)
 }
 
-func (p *Docker) IsAvailable(url *url.URL, org, repo, branch string) bool {
+func (p Docker) IsAvailable(url *url.URL, org, repo, branch string) bool {
 	// does container exist?
 	container, ok := p.getContainer(org, repo, branch)
 	if !ok {
@@ -81,15 +81,15 @@ func (p *Docker) IsAvailable(url *url.URL, org, repo, branch string) bool {
 	return false
 }
 
-func (p *Docker) GetLogs(org, repo, branch string) ([]byte, error) {
+func (p Docker) GetLogs(org, repo, branch string) ([]byte, error) {
 	return p.getLogs(org, repo, branch)
 }
 
-func (p *Docker) containerName(org, repo, branch string) string {
+func (p Docker) containerName(org, repo, branch string) string {
 	return fmt.Sprintf("%s-%s-%s", org, repo, branch)
 }
 
-func (p *Docker) createContainer(org, repo, branch string) (*docker.Container, error) {
+func (p Docker) createContainer(org, repo, branch string) (*docker.Container, error) {
 	container_id := p.containerName(org, repo, branch)
 	containerConfig := docker.Config{
 		AttachStdout: true,
@@ -107,11 +107,11 @@ func (p *Docker) createContainer(org, repo, branch string) (*docker.Container, e
 	return p.client.CreateContainer(opts)
 }
 
-func (p *Docker) startContainer(container *docker.Container) error {
+func (p Docker) startContainer(container *docker.Container) error {
 	return p.client.StartContainer(container.ID, container.HostConfig)
 }
 
-func (p *Docker) removeContainer(org, repo, branch string) error {
+func (p Docker) removeContainer(org, repo, branch string) error {
 	container_id := p.containerName(org, repo, branch)
 	config := docker.RemoveContainerOptions{
 		ID:    container_id,
@@ -120,7 +120,7 @@ func (p *Docker) removeContainer(org, repo, branch string) error {
 	return p.client.RemoveContainer(config)
 }
 
-func (p *Docker) getContainer(org, repo, branch string) (*docker.Container, bool) {
+func (p Docker) getContainer(org, repo, branch string) (*docker.Container, bool) {
 	container_id := p.containerName(org, repo, branch)
 	container, err := p.client.InspectContainer(container_id)
 	if err != nil {
@@ -130,7 +130,7 @@ func (p *Docker) getContainer(org, repo, branch string) (*docker.Container, bool
 	return container, true
 }
 
-func (p *Docker) getLogs(org, repo, branch string) ([]byte, error) {
+func (p Docker) getLogs(org, repo, branch string) ([]byte, error) {
 	var err error
 	stderrBuffer := new(bytes.Buffer)
 	err = p.client.Logs(docker.LogsOptions{
