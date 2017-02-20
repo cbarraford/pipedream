@@ -94,15 +94,6 @@ func (p Docker) containerName(org, repo, branch string) string {
 }
 
 func (p Docker) createContainer(org, repo, branch string) (*docker.Container, error) {
-	container_id := p.containerName(org, repo, branch)
-	containerConfig := docker.Config{
-		AttachStdout: true,
-		AttachStdin:  true,
-		Image:        "simple", // TODO: make this configurable
-		Hostname:     container_id,
-		Cmd:          []string{branch},
-	}
-
 	// get repo configuration (if exists)
 	var repoConf *config.Repo
 	repoName := fmt.Sprintf("%s/%s", strings.ToLower(org), strings.ToLower(repo))
@@ -111,6 +102,15 @@ func (p Docker) createContainer(org, repo, branch string) (*docker.Container, er
 			repoConf = repository
 			break
 		}
+	}
+
+	container_id := p.containerName(org, repo, branch)
+	containerConfig := docker.Config{
+		AttachStdout: true,
+		AttachStdin:  true,
+		Image:        "simple", // TODO: make this configurable
+		Hostname:     container_id,
+		Cmd:          []string{branch},
 	}
 
 	// default restart policy
