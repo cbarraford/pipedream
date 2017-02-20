@@ -31,7 +31,7 @@ func (r *LastRequest) Remove(org, repo, branch string) {
 }
 
 func (r *LastRequest) StartTicker(provider providers.Provider) {
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(time.Second * 60)
 	go func() {
 		for _ = range ticker.C {
 			stale := r.GetStaleApps()
