@@ -1,17 +1,33 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"net/http/httputil"
 
 	"github.com/gin-gonic/gin"
 
+	"pipedream/config"
 	"pipedream/providers/docker"
 )
 
+var configFile string
+
+func init() {
+	flag.StringVar(&configFile, "config", "", "Configuration file location")
+	flag.Parse()
+
+	if configFile == "" {
+		log.Fatal("--config must be defined")
+	}
+}
+
 func main() {
 	r := gin.Default()
+
+	conf := config.ReadConfig(configFile)
+	log.Printf("Config: %+v", conf)
 
 	// TODO: make this configurable (pick own provider)
 	provider, err := docker.NewProvider()

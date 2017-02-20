@@ -3,6 +3,7 @@
 *.dll
 *.so
 *.dylib
+dev.gcfg
 bin
 
 # vendor

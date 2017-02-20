@@ -5,4 +5,4 @@ build:
 	go get -t -v ./src/pipedream/...
 
 start:
-	./bin/pipedream
+	./bin/pipedream --config config/dev.gcfg
