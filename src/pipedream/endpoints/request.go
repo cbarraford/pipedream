@@ -34,9 +34,7 @@ func (r *LastRequest) StartTicker(provider providers.Provider) {
 		for t := range ticker.C {
 			stale := r.GetStaleApps()
 			for _, app := range stale {
-				org := app[0]
-				repo := app[1]
-				branch := app[2]
+				org, repo, branch := app[0], app[1], app[2]
 				err := provider.Stop(org, repo, branch)
 				if err != nil {
 					log.Printf("Error stopping app: %+v", err)
