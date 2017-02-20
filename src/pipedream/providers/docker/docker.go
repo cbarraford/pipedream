@@ -94,7 +94,7 @@ func (p *Docker) createContainer(org, repo, branch string) (*docker.Container, e
 	containerConfig := docker.Config{
 		AttachStdout: true,
 		AttachStdin:  true,
-		Image:        "simple",
+		Image:        "simple", // TODO: make this configurable
 		Hostname:     container_id,
 		Cmd:          []string{branch},
 	}
