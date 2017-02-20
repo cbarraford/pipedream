@@ -2,6 +2,8 @@ package endpoints
 
 import (
 	"fmt"
+	"log"
+	"pipedream/providers"
 	"strings"
 	"time"
 
@@ -20,6 +22,30 @@ func (r *LastRequest) keyify(org, repo, branch string) string {
 func (r *LastRequest) AddRequest(org, repo, branch string) {
 	key := r.keyify(org, repo, branch)
 	r.repos[key] = time.Now()
+}
+
+func (r *LastRequest) Remove(org, repo, branch string) {
+	delete(r.repos, r.keyify(org, repo, branch))
+}
+
+func (r *LastRequest) StartTicker(provider providers.Provider) {
+	ticker := time.NewTicker(time.Second * 60)
+	go func() {
+		for t := range ticker.C {
+			stale := r.GetStaleApps()
+			for _, app := range stale {
+				org := app[0]
+				repo := app[1]
+				branch := app[2]
+				err := provider.Stop(org, repo, branch)
+				if err != nil {
+					log.Printf("Error stopping app: %+v", err)
+				} else {
+					r.Remove(org, repo, branch)
+				}
+			}
+		}
+	}()
 }
 
 func (r *LastRequest) GetStaleApps() [][]string {

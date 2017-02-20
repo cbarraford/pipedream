@@ -28,6 +28,7 @@ func NewHandler(idle time.Duration, provider providers.Provider) *gin.Engine {
 	}
 
 	r.Use(handler.lastRequest.Middleware())
+	handler.lastRequest.StartTicker(provider)
 
 	r.GET("/hook", handler.getHook)
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
