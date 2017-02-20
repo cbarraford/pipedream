@@ -114,14 +114,11 @@ func (p Docker) createContainer(org, repo, branch string) (*docker.Container, er
 	}
 
 	// default restart policy
-	restart := docker.RestartPolicy{
-		Name: "no",
-	}
+	restart := docker.NeverRestart()
 	// if this branch is AlwaysOn, set policy accordingly
 	for _, rname := range repoConf.AlwaysOn {
 		if branch == rname {
-			restart.Name = "on-failure"
-			restart.MaximumRetryCount = 10
+			restart = docker.RestartOnFailure(10)
 			break
 		}
 	}
