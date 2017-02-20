@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"time"
 
 	"pipedream/config"
 	"pipedream/endpoints"
@@ -28,9 +29,14 @@ func main() {
 	// TODO: make this configurable (pick own provider)
 	provider, err := docker.NewProvider(conf)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	r := endpoints.NewHandler(provider)
+	idle, err := time.ParseDuration(conf.General.IdleShutdown.String())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := endpoints.NewHandler(idle, provider)
 	r.Run() // listen and serve on 0.0.0.0:8080
 }

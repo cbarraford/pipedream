@@ -8,11 +8,11 @@ import (
 	gcfg "gopkg.in/gcfg.v1"
 )
 
-type duration struct {
+type Duration struct {
 	time.Duration
 }
 
-func (d *duration) UnmarshalText(text []byte) error {
+func (d *Duration) UnmarshalText(text []byte) error {
 	var err error
 	d.Duration, err = time.ParseDuration(string(text))
 	return err
@@ -25,7 +25,7 @@ type Repo struct {
 
 type Config struct {
 	General struct {
-		IdleShutdown duration
+		IdleShutdown Duration
 		GithubToken  string
 	}
 	Repository map[string]*Repo

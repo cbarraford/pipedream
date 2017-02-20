@@ -1,9 +1,12 @@
 package endpoints
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,15 +14,22 @@ import (
 )
 
 type Handler struct {
-	provider providers.Provider
+	provider    providers.Provider
+	lastRequest LastRequest
 }
 
-func NewHandler(provider providers.Provider) *gin.Engine {
+func NewHandler(idle time.Duration, provider providers.Provider) *gin.Engine {
 	r := gin.Default()
 
 	handler := Handler{
 		provider: provider,
+		lastRequest: LastRequest{
+			idle:  idle,
+			repos: make(map[string]time.Time),
+		},
 	}
+
+	r.Use(handler.lastRequest.Middleware())
 
 	r.GET("/hook", handler.getHook)
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
@@ -73,4 +83,40 @@ func (h *Handler) getLogs(c *gin.Context) {
 	}
 
 	c.Data(200, "text/plain", data)
+}
+
+type LastRequest struct {
+	repos map[string]time.Time
+	idle  time.Duration
+}
+
+func (r *LastRequest) keyify(org, repo, branch string) string {
+	return fmt.Sprintf("%s %s %s", org, repo, branch)
+}
+
+func (r *LastRequest) AddRequest(org, repo, branch string) {
+	key := r.keyify(org, repo, branch)
+	r.repos[key] = time.Now()
+}
+
+func (r *LastRequest) GetStaleApps() [][]string {
+	stale := make([][]string, 0)
+	for repo, lastRequest := range r.repos {
+		duration := time.Since(lastRequest)
+		if duration > r.idle {
+			stale = append(stale, strings.Split(repo, " "))
+		}
+	}
+	return stale
+}
+
+func (r LastRequest) Middleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		org := c.Param("org")
+		repo := c.Param("repo")
+		branch := c.Param("branch")
+		if org != "" && repo != "" && branch != "" {
+			r.AddRequest(org, repo, branch)
+		}
+	}
 }
