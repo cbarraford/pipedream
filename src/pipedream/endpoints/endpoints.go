@@ -37,11 +37,9 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Apps: %+v", applications)
 	for _, app := range applications {
 		handler.lastRequest.AddRequest(app)
 	}
-	log.Printf("%+v", handler.lastRequest)
 
 	r.Use(handler.lastRequest.Middleware())
 	handler.lastRequest.StartTicker(provider)
