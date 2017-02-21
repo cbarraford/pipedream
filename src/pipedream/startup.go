@@ -23,7 +23,6 @@ func init() {
 func main() {
 	// load configuration file
 	conf := config.ReadConfig(configFile)
-	log.Printf("Config: %+v", conf)
 
 	// TODO: make this configurable (pick own provider)
 	provider, err := docker.NewProvider(conf)

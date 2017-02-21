@@ -1,6 +1,10 @@
 package providers
 
-import "net/url"
+import (
+	"net/url"
+
+	"pipedream/apps"
+)
 
 // Provider is the backend that application run within. We use an interface so
 // we can support multiple potential backends (ie docker, digitalocean, etc)
@@ -9,15 +13,18 @@ type Provider interface {
 	Name() string
 
 	// Start app
-	Start(org, repo, branch string) error
+	Start(app apps.App) error
 
 	// Stop app
-	Stop(org, repo, branch string) error
+	Stop(app apps.App) error
 
 	// Is app available for traffic
 	// If app is available, url should be updated to proxy location
-	IsAvailable(url *url.URL, org, repo, branch string) bool
+	IsAvailable(url *url.URL, app apps.App) bool
 
 	// Get application logs
-	GetLogs(org, repo, branch string) ([]byte, error)
+	GetLogs(app apps.App) ([]byte, error)
+
+	// List all apps
+	ListApps() ([]apps.App, error)
 }

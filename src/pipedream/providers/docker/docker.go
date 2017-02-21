@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"pipedream/config"
+	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
+
+	"pipedream/apps"
+	"pipedream/config"
 )
 
 type Docker struct {
@@ -33,11 +36,11 @@ func (p Docker) Name() string {
 	return "docker"
 }
 
-func (p Docker) Start(org, repo, branch string) error {
+func (p Docker) Start(app apps.App) error {
 	var err error
-	container, ok := p.getContainer(org, repo, branch)
+	container, ok := p.getContainer(app)
 	if !ok {
-		container, err = p.createContainer(org, repo, branch)
+		container, err = p.createContainer(app)
 		if err != nil {
 			return err
 		}
@@ -53,13 +56,13 @@ func (p Docker) Start(org, repo, branch string) error {
 	return nil
 }
 
-func (p Docker) Stop(org, repo, branch string) error {
-	return p.removeContainer(org, repo, branch)
+func (p Docker) Stop(app apps.App) error {
+	return p.removeContainer(app)
 }
 
-func (p Docker) IsAvailable(url *url.URL, org, repo, branch string) bool {
+func (p Docker) IsAvailable(url *url.URL, app apps.App) bool {
 	// does container exist?
-	container, ok := p.getContainer(org, repo, branch)
+	container, ok := p.getContainer(app)
 	if !ok {
 		return false
 	}
@@ -84,32 +87,50 @@ func (p Docker) IsAvailable(url *url.URL, org, repo, branch string) bool {
 	return false
 }
 
-func (p Docker) GetLogs(org, repo, branch string) ([]byte, error) {
-	return p.getLogs(org, repo, branch)
+func (p Docker) GetLogs(app apps.App) ([]byte, error) {
+	return p.getLogs(app)
 }
 
-func (p Docker) containerName(org, repo, branch string) string {
-	return fmt.Sprintf("%s-%s-%s", org, repo, branch)
+func (p Docker) ListApps() ([]apps.App, error) {
+	return p.listApps()
 }
 
-func (p Docker) createContainer(org, repo, branch string) (*docker.Container, error) {
+func (p Docker) listApps() (applications []apps.App, err error) {
+	containerOptions := docker.ListContainersOptions{}
+	containers, err := p.client.ListContainers(containerOptions)
+	if err != nil {
+		return
+	}
+
+	for _, container := range containers {
+		name := strings.Trim(container.Names[0], "/")
+		parts := strings.Split(name, ".")
+		if len(parts) > 2 {
+			app := apps.NewApp(parts[0], parts[1], parts[2])
+			applications = append(applications, app)
+		}
+	}
+
+	return
+}
+
+func (p Docker) createContainer(app apps.App) (*docker.Container, error) {
 	// get repo configuration (if exists)
-	repoConf, _ := p.conf.GetRepo(org, repo)
+	repoConf, _ := p.conf.GetRepo(app.Org, app.Repo)
 
-	container_id := p.containerName(org, repo, branch)
 	containerConfig := docker.Config{
 		AttachStdout: true,
 		AttachStdin:  true,
 		Image:        "simple", // TODO: make this configurable
-		Hostname:     container_id,
-		Cmd:          []string{branch},
+		Hostname:     app.String(),
+		Cmd:          []string{app.Branch},
 	}
 
 	// default restart policy
 	restart := docker.NeverRestart()
 	// if this branch is AlwaysOn, set policy accordingly
 	for _, rname := range repoConf.AlwaysOn {
-		if branch == rname {
+		if app.Branch == rname {
 			restart = docker.RestartOnFailure(10)
 			break
 		}
@@ -120,7 +141,7 @@ func (p Docker) createContainer(org, repo, branch string) (*docker.Container, er
 		Privileged:      true,
 		RestartPolicy:   restart,
 	}
-	opts := docker.CreateContainerOptions{Name: container_id, Config: &containerConfig, HostConfig: &contHostConfig}
+	opts := docker.CreateContainerOptions{Name: app.String(), Config: &containerConfig, HostConfig: &contHostConfig}
 	return p.client.CreateContainer(opts)
 }
 
@@ -128,18 +149,16 @@ func (p Docker) startContainer(container *docker.Container) error {
 	return p.client.StartContainer(container.ID, container.HostConfig)
 }
 
-func (p Docker) removeContainer(org, repo, branch string) error {
-	container_id := p.containerName(org, repo, branch)
+func (p Docker) removeContainer(app apps.App) error {
 	config := docker.RemoveContainerOptions{
-		ID:    container_id,
+		ID:    app.String(),
 		Force: true,
 	}
 	return p.client.RemoveContainer(config)
 }
 
-func (p Docker) getContainer(org, repo, branch string) (*docker.Container, bool) {
-	container_id := p.containerName(org, repo, branch)
-	container, err := p.client.InspectContainer(container_id)
+func (p Docker) getContainer(app apps.App) (*docker.Container, bool) {
+	container, err := p.client.InspectContainer(app.String())
 	if err != nil {
 		log.Printf("Could not get container: %+v", err)
 		return container, false
@@ -147,11 +166,11 @@ func (p Docker) getContainer(org, repo, branch string) (*docker.Container, bool)
 	return container, true
 }
 
-func (p Docker) getLogs(org, repo, branch string) ([]byte, error) {
+func (p Docker) getLogs(app apps.App) ([]byte, error) {
 	var err error
 	stderrBuffer := new(bytes.Buffer)
 	err = p.client.Logs(docker.LogsOptions{
-		Container:   p.containerName(org, repo, branch),
+		Container:   app.String(),
 		ErrorStream: stderrBuffer,
 		Stdout:      true,
 		Stderr:      true,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"pipedream/apps"
 	"pipedream/config"
 	"pipedream/providers"
 )
@@ -31,6 +32,17 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 		},
 	}
 
+	// populate last request
+	applications, err := provider.ListApps()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Apps: %+v", applications)
+	for _, app := range applications {
+		handler.lastRequest.AddRequest(app)
+	}
+	log.Printf("%+v", handler.lastRequest)
+
 	r.Use(handler.lastRequest.Middleware())
 	handler.lastRequest.StartTicker(provider)
 
@@ -45,14 +57,19 @@ func (h *Handler) getHook(c *gin.Context) {
 	c.String(http.StatusOK, "yes")
 }
 
-func (h *Handler) appRequest(c *gin.Context) {
-	var err error
+func (h *Handler) getApp(c *gin.Context) apps.App {
 	org := c.Param("org")
 	repo := c.Param("repo")
 	branch := c.Param("branch")
+	return apps.NewApp(org, repo, branch)
+}
+
+func (h *Handler) appRequest(c *gin.Context) {
+	var err error
+	app := h.getApp(c)
 
 	url := c.Request.URL
-	ok := h.provider.IsAvailable(url, org, repo, branch)
+	ok := h.provider.IsAvailable(url, app)
 	if ok {
 		director := func(req *http.Request) {
 			req.URL = url
@@ -62,11 +79,11 @@ func (h *Handler) appRequest(c *gin.Context) {
 		return
 	}
 
-	if err := h.provider.Start(org, repo, branch); err != nil {
+	if err := h.provider.Start(app); err != nil {
 		log.Printf("Couldn't start: %+v", err)
 	}
 
-	data, err := h.provider.GetLogs(org, repo, branch)
+	data, err := h.provider.GetLogs(app)
 	if err != nil {
 		log.Printf("Error getting logs: %+v", err)
 	}
@@ -76,11 +93,9 @@ func (h *Handler) appRequest(c *gin.Context) {
 }
 
 func (h *Handler) getLogs(c *gin.Context) {
-	org := c.Param("org")
-	repo := c.Param("repo")
-	branch := c.Param("branch")
+	app := h.getApp(c)
 
-	data, err := h.provider.GetLogs(org, repo, branch)
+	data, err := h.provider.GetLogs(app)
 	if err != nil {
 		log.Printf("Error getting logs: %+v", err)
 	}
