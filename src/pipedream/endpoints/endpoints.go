@@ -1,9 +1,14 @@
 package endpoints
 
 import (
+	"bufio"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +25,7 @@ type Handler struct {
 
 func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	r := gin.Default()
+	r.LoadHTMLGlob("templates/*.tmpl")
 
 	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
 
@@ -47,6 +53,7 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	r.GET("/hook", handler.getHook)
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
 	r.GET("/logs/:org/:repo/:branch", handler.getLogs)
+	r.GET("/wait/:org/:repo/:branch", handler.wait)
 
 	return r
 }
@@ -62,41 +69,58 @@ func (h *Handler) getApp(c *gin.Context) apps.App {
 	return apps.NewApp(org, repo, branch)
 }
 
+func (h *Handler) wait(c *gin.Context) {
+	app := h.getApp(c)
+	c.HTML(http.StatusOK, "wait.tmpl", gin.H{
+		"org":    app.Org,
+		"repo":   app.Repo,
+		"branch": app.Branch,
+	})
+}
+
 func (h *Handler) appRequest(c *gin.Context) {
-	var err error
 	app := h.getApp(c)
 
 	url := c.Request.URL
 	ok := h.provider.IsAvailable(url, app)
 	if ok {
-		director := func(req *http.Request) {
-			req.URL = url
-		}
-		proxy := &httputil.ReverseProxy{Director: director}
-		proxy.ServeHTTP(c.Writer, c.Request)
+		h.proxy(c, url)
 		return
+	} else {
+		if err := h.provider.Start(app); err != nil {
+			log.Printf("Couldn't start: %+v", err)
+		}
+		path := fmt.Sprintf("/wait/%s/%s/%s", app.Org, app.Repo, app.Branch)
+		c.Redirect(http.StatusTemporaryRedirect, path)
 	}
+}
 
-	if err := h.provider.Start(app); err != nil {
-		log.Printf("Couldn't start: %+v", err)
+func (h *Handler) proxy(c *gin.Context, url *url.URL) {
+	director := func(req *http.Request) {
+		req.URL = url
 	}
-
-	data, err := h.provider.GetLogs(app)
-	if err != nil {
-		log.Printf("Error getting logs: %+v", err)
-	}
-
-	// c.Header("Refresh", "5; url="+c.Request.URL.String())
-	c.Data(200, "text/plain", data)
+	proxy := &httputil.ReverseProxy{Director: director}
+	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
 func (h *Handler) getLogs(c *gin.Context) {
 	app := h.getApp(c)
 
-	data, err := h.provider.GetLogs(app)
+	pipeReader, pipeWriter := io.Pipe()
+	defer pipeWriter.Close()
+	err := h.provider.GetLogs(pipeWriter, app)
 	if err != nil {
 		log.Printf("Error getting logs: %+v", err)
 	}
 
-	c.Data(200, "text/plain", data)
+	func(reader io.Reader) {
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			c.Writer.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
+			c.Writer.Flush()
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, "There was an error with the scanner in attached container", err)
+		}
+	}(pipeReader)
 }

@@ -1,8 +1,8 @@
 package docker
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"strings"
@@ -87,8 +87,8 @@ func (p Docker) IsAvailable(url *url.URL, app apps.App) bool {
 	return false
 }
 
-func (p Docker) GetLogs(app apps.App) ([]byte, error) {
-	return p.getLogs(app)
+func (p Docker) GetLogs(w *io.PipeWriter, app apps.App) error {
+	return p.getLogs(w, app)
 }
 
 func (p Docker) ListApps() ([]apps.App, error) {
@@ -166,19 +166,17 @@ func (p Docker) getContainer(app apps.App) (*docker.Container, bool) {
 	return container, true
 }
 
-func (p Docker) getLogs(app apps.App) ([]byte, error) {
-	var err error
-	stderrBuffer := new(bytes.Buffer)
-	err = p.client.Logs(docker.LogsOptions{
-		Container:   app.String(),
-		ErrorStream: stderrBuffer,
-		Stdout:      true,
-		Stderr:      true,
-		Tail:        "20",
+func (p Docker) getLogs(w *io.PipeWriter, app apps.App) error {
+	go p.client.Logs(docker.LogsOptions{
+		Container:    app.String(),
+		OutputStream: w,
+		ErrorStream:  w,
+		Stdout:       true,
+		Stderr:       true,
+		//Tail:         "20",
+		Follow:      true,
+		RawTerminal: true,
+		//Timestamps:   true,
 	})
-	if err != nil {
-		log.Printf("Error getting logs: %+v", err)
-		return nil, err
-	}
-	return stderrBuffer.Bytes(), nil
+	return nil
 }

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"io"
 	"net/url"
 
 	"pipedream/apps"
@@ -23,7 +24,7 @@ type Provider interface {
 	IsAvailable(url *url.URL, app apps.App) bool
 
 	// Get application logs
-	GetLogs(app apps.App) ([]byte, error)
+	GetLogs(w *io.PipeWriter, app apps.App) error
 
 	// List all apps
 	ListApps() ([]apps.App, error)
