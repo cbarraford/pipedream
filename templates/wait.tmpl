@@ -14,7 +14,7 @@
                     function(json){ 
                         if (json.up) {
                             // this app is now up (available), redirect to it
-                            //window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
+                            window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
                         }
                     });
                 }, 5000);
