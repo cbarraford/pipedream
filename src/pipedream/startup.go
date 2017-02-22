@@ -7,6 +7,7 @@ import (
 	"pipedream/config"
 	"pipedream/endpoints"
 	"pipedream/providers/docker"
+	"pipedream/services/github"
 )
 
 var configFile string
@@ -30,6 +31,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := endpoints.NewHandler(conf, provider)
+	// setup github hooks
+	githubClient := github.NewClient(
+		conf.Github.Token,
+		conf.General.ServerAddress,
+		conf.Github.Secret,
+	)
+	if err := githubClient.Setup(); err != nil {
+		log.Fatal(err)
+	}
+
+	r := endpoints.NewHandler(conf, provider, githubClient)
 	r.Run() // listen and serve on 0.0.0.0:8080
 }

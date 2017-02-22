@@ -12,18 +12,21 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-github/github"
 
 	"pipedream/apps"
 	"pipedream/config"
 	"pipedream/providers"
+	gh "pipedream/services/github"
 )
 
 type Handler struct {
 	provider    providers.Provider
 	lastRequest LastRequest
+	github      gh.GithubService
 }
 
-func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
+func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubService) *gin.Engine {
 	r := gin.Default()
 	r.LoadHTMLGlob("templates/*.tmpl")
 
@@ -36,6 +39,7 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 			repos: make(map[string]time.Time),
 			conf:  conf,
 		},
+		github: g,
 	}
 
 	// populate last request
@@ -50,7 +54,7 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	r.Use(handler.lastRequest.Middleware())
 	handler.lastRequest.StartTicker(provider)
 
-	r.GET("/hook", handler.getHook)
+	r.POST("/hooks/:service", handler.getHook)
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
 	r.GET("/logs/:org/:repo/:branch", handler.getLogs)
 	r.GET("/wait/:org/:repo/:branch", handler.wait)
@@ -60,6 +64,25 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 }
 
 func (h *Handler) getHook(c *gin.Context) {
+	payload, err := github.ValidatePayload(c.Request, []byte(h.github.Secret))
+	if err != nil {
+		c.Error(err)
+	}
+	log.Printf("Payload: %+v", payload)
+	event, err := github.ParseWebHook(github.WebHookType(c.Request), payload)
+	if err != nil {
+		c.Error(err)
+	}
+	switch event := event.(type) {
+	case *github.CommitCommentEvent:
+		log.Print("its a commit comment")
+		log.Printf("Event: %+v", event)
+		//processCommitCommentEvent(event)
+	case *github.CreateEvent:
+		log.Print("its a create event")
+		log.Printf("Event: %+v", event)
+		//processCreateEvent(event)
+	}
 	c.String(http.StatusOK, "yes")
 }
 

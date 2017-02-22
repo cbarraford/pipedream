@@ -27,8 +27,12 @@ type Repo struct {
 
 type Config struct {
 	General struct {
-		IdleShutdown Duration
-		GithubToken  string
+		IdleShutdown  Duration
+		ServerAddress string
+	}
+	Github struct {
+		Token  string
+		Secret string
 	}
 	Repository map[string]*Repo
 }
