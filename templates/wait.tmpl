@@ -7,17 +7,30 @@
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
         <script>
-            // routinely check if app is available
-            setInterval(
-                function() {
-                    $.getJSON("/health/{{ .org }}/{{ .repo }}/{{ .branch }}",
-                    function(json){ 
-                        if (json.up) {
-                            // this app is now up (available), redirect to it
-                            window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
-                        }
-                    });
-                }, 5000);
+
+            function getParameterByName(name, url) {
+                if (!url) url = window.location.href;
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+
+            // routinely check if app is available, unless redirect is disabled
+            if ( getParameterByName("redirect") != "false" ) {
+                setInterval(
+                    function() {
+                        $.getJSON("/health/{{ .org }}/{{ .repo }}/{{ .branch }}",
+                        function(json){ 
+                            if (json.up) {
+                                // this app is now up (available), redirect to it
+                                window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
+                            }
+                        });
+                    }, 5000);
+            }
 
             // stream app logs to the browser
             // TODO: Support xhr polling for browsers that don't support server-sent events
