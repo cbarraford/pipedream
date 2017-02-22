@@ -14,21 +14,22 @@
                     function(json){ 
                         if (json.up) {
                             // this app is now up (available), redirect to it
-                            window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
+                            //window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
                         }
                     });
                 }, 5000);
 
             // stream app logs to the browser
-            var oReq = new XMLHttpRequest();
-            oReq.onreadystatechange = function()
-            {
-                var response = this.responseText.replace(/\n/g, '<br/>');
-                $("#logs").html(response);
-                document.body.scrollTop = document.body.scrollHeight;
-            }
-            oReq.open("get", "/logs/{{ .org }}/{{ .repo }}/{{ .branch }}", true);
-            oReq.send();
+            // TODO: Support xhr polling for browsers that don't support server-sent events
+            // https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+            var source = new EventSource('/logs/{{ .org }}/{{ .repo }}/{{ .branch }}');
+            source.addEventListener('log', function(e) {
+                var autoscroll = (window.innerHeight + window.scrollY) >= document.body.scrollHeight
+                $("#logs").append(e.data + "<br />")
+                if (autoscroll) {
+                    document.body.scrollTop = document.body.scrollHeight;
+                }
+            }, false);
         </script>
     </head>
     <body>

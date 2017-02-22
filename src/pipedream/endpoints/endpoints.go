@@ -144,19 +144,22 @@ func (h *Handler) getLogs(c *gin.Context) {
 
 	pipeReader, pipeWriter := io.Pipe()
 	defer pipeWriter.Close()
+	defer pipeReader.Close()
 	err := h.provider.GetLogs(pipeWriter, app)
 	if err != nil {
 		log.Printf("Error getting logs: %+v", err)
 	}
 
-	func(reader io.Reader) {
-		scanner := bufio.NewScanner(reader)
+	c.Stream(func(w io.Writer) bool {
+		scanner := bufio.NewScanner(pipeReader)
 		for scanner.Scan() {
-			c.Writer.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
+			c.SSEvent("log", scanner.Text())
 			c.Writer.Flush()
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Fprintln(os.Stderr, "There was an error with the scanner in attached container", err)
+			return false
 		}
-	}(pipeReader)
+		return true
+	})
 }
