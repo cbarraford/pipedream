@@ -54,6 +54,7 @@ func NewHandler(conf config.Config, provider providers.Provider) *gin.Engine {
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
 	r.GET("/logs/:org/:repo/:branch", handler.getLogs)
 	r.GET("/wait/:org/:repo/:branch", handler.wait)
+	r.GET("/health/:org/:repo/:branch", handler.health)
 
 	return r
 }
@@ -67,6 +68,18 @@ func (h *Handler) getApp(c *gin.Context) apps.App {
 	repo := c.Param("repo")
 	branch := c.Param("branch")
 	return apps.NewApp(org, repo, branch)
+}
+
+func (h *Handler) health(c *gin.Context) {
+	app := h.getApp(c)
+	up := h.provider.IsAvailable(&url.URL{}, app)
+	requestTime := h.lastRequest.Get(app)
+
+	c.JSON(200, gin.H{
+		"app":          app,
+		"up":           up,
+		"last_request": requestTime,
+	})
 }
 
 func (h *Handler) wait(c *gin.Context) {

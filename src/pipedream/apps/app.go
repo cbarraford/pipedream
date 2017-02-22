@@ -3,9 +3,9 @@ package apps
 import "fmt"
 
 type App struct {
-	Org    string
-	Repo   string
-	Branch string
+	Org    string `json:"org"`
+	Repo   string `json:"repo"`
+	Branch string `json:"branch"`
 }
 
 func NewApp(org, repo, branch string) App {

@@ -27,6 +27,11 @@ func (r *LastRequest) Remove(app apps.App) {
 	delete(r.repos, app.String())
 }
 
+func (r *LastRequest) Get(app apps.App) time.Time {
+	key := app.String()
+	return r.repos[key]
+}
+
 func (r *LastRequest) StartTicker(provider providers.Provider) {
 	ticker := time.NewTicker(time.Second * 60)
 	go func() {
