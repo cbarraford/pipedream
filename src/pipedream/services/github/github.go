@@ -45,9 +45,8 @@ func (g *GithubService) GetReference(org, repo, ref string) (string, error) {
 	return *reference.Object.SHA, err
 }
 
-func (g *GithubService) CreateStatus(org, repo, ref string, state string) error {
+func (g *GithubService) CreateStatus(url, org, repo, ref string, state string) error {
 	description := "Pipedream Instance"
-	url := fmt.Sprintf("http://localhost:8080/appByCommit/%s/%s/%s", org, repo, ref)
 	repoStatus := &github.RepoStatus{
 		State:       &state,
 		TargetURL:   &url,

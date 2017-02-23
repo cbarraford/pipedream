@@ -85,10 +85,14 @@ func (h *Handler) getHook(c *gin.Context) {
 		// TODO: put this logic into its own function or package
 		parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
-		//parts = strings.Split(*event.Ref, "/")
-		//branch := parts[len(parts)-1]*/
+		parts = strings.Split(*event.Ref, "/")
+		branch := parts[len(parts)-1]
+		commit := *event.Commits[0].ID
+		app := apps.NewApp(org, repo, branch, commit)
 
-		if err := h.github.CreateStatus(org, repo, *event.Commits[0].ID, "success"); err != nil {
+		serverAddress := h.lastRequest.config.General.ServerAddress
+		url := fmt.Sprintf("%s/appByCommit/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
+		if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
 			log.Printf("%+v", err)
 		}
 
