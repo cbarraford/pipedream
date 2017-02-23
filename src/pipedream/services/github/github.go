@@ -43,6 +43,7 @@ func (g *GithubService) ProperHook() *github.Hook {
 	config := make(map[string]interface{})
 	config["url"] = url
 	config["secret"] = g.Secret
+	config["content_type"] = "json"
 	return &github.Hook{
 		Name:   &name,
 		URL:    &url,

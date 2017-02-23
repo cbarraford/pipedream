@@ -1,6 +1,9 @@
 package apps
 
-import "fmt"
+import (
+	b64 "encoding/base64"
+	"fmt"
+)
 
 type App struct {
 	Org    string `json:"org"`
@@ -18,4 +21,8 @@ func NewApp(org, repo, branch string) App {
 
 func (a *App) String() string {
 	return fmt.Sprintf("%s.%s.%s", a.Org, a.Repo, a.Branch)
+}
+
+func (a *App) Hash() string {
+	return b64.StdEncoding.EncodeToString([]byte(a.String()))
 }

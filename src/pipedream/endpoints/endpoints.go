@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,7 @@ type Handler struct {
 	provider    providers.Provider
 	lastRequest LastRequest
 	github      gh.GithubService
+	reserved    *Reserved
 }
 
 func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubService) *gin.Engine {
@@ -31,15 +33,17 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 	r.LoadHTMLGlob("templates/*.tmpl")
 
 	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
+	reserved := NewReserved(conf, provider)
 
 	handler := Handler{
 		provider: provider,
 		lastRequest: LastRequest{
-			idle:  idle,
-			repos: make(map[string]time.Time),
-			conf:  conf,
+			idle:     idle,
+			repos:    make(map[string]time.Time),
+			reserved: reserved,
 		},
-		github: g,
+		github:   g,
+		reserved: reserved,
 	}
 
 	// populate last request
@@ -68,22 +72,46 @@ func (h *Handler) getHook(c *gin.Context) {
 	if err != nil {
 		c.Error(err)
 	}
-	log.Printf("Payload: %+v", payload)
-	event, err := github.ParseWebHook(github.WebHookType(c.Request), payload)
+
+	hookType := github.WebHookType(c.Request)
+	event, err := github.ParseWebHook(hookType, payload)
 	if err != nil {
 		c.Error(err)
 	}
+
 	switch event := event.(type) {
-	case *github.CommitCommentEvent:
-		log.Print("its a commit comment")
-		log.Printf("Event: %+v", event)
-		//processCommitCommentEvent(event)
-	case *github.CreateEvent:
-		log.Print("its a create event")
-		log.Printf("Event: %+v", event)
-		//processCreateEvent(event)
+	case *github.PingEvent:
+		// do nothing
+	case *github.PushEvent:
+		// TODO: put this logic into its own function or package
+		parts := strings.Split(*event.Repo.FullName, "/")
+		org, repo := parts[0], parts[1]
+		parts := strings.Split(*event.Ref, "/")
+		branch := parts[len(parts)-1]
+		app := apps.NewApp(org, repo, branch)
+
+		if h.reserved.IsReserved(app) {
+			// restart the app
+			h.provider.Stop(app)
+			h.provider.Start(app)
+		}
+
+	case *github.PullRequestEvent:
+		// TODO: put this logic into its own function or package
+		// detect app
+		parts := strings.Split(*event.Repo.FullName, "/")
+		org, repo := parts[0], parts[1]
+		parts = strings.Split(*event.PullRequest.Head.Label, ":")
+		branch := parts[1]
+		app := apps.NewApp(org, repo, branch)
+
+		if *event.PullRequest.State == "closed" {
+			h.reserved.Remove(app)
+		} else {
+			h.reserved.Add(app)
+		}
 	}
-	c.String(http.StatusOK, "yes")
+	c.String(http.StatusOK, "OK")
 }
 
 func (h *Handler) getApp(c *gin.Context) apps.App {

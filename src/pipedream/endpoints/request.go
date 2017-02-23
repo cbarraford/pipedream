@@ -8,14 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"pipedream/apps"
-	"pipedream/config"
 	"pipedream/providers"
 )
 
 type LastRequest struct {
-	repos map[string]time.Time
-	idle  time.Duration
-	conf  config.Config
+	repos    map[string]time.Time
+	idle     time.Duration
+	reserved *Reserved
 }
 
 func (r *LastRequest) AddRequest(app apps.App) {
@@ -57,17 +56,10 @@ func (r *LastRequest) GetStaleApps() [][]string {
 		// skip apps that are "alwaysOn"
 		parts := strings.Split(repo, ".")
 		org, repo, branch := parts[0], parts[1], parts[2]
-		repoConf, ok := r.conf.GetRepo(org, repo)
-		if ok {
-			on := false
-			for _, alwaysOn := range repoConf.AlwaysOn {
-				if alwaysOn == branch {
-					on = true
-				}
-			}
-			if on {
-				continue
-			}
+		app := apps.NewApp(org, repo, branch)
+
+		if r.reserved.IsReserved(app) {
+			continue
 		}
 
 		duration := time.Since(lastRequest)
