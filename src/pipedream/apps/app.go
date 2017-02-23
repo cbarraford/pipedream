@@ -24,3 +24,7 @@ func NewApp(org, repo, branch, commit string) App {
 func (a *App) String() string {
 	return fmt.Sprintf("%s.%s.%s.%s", a.Org, a.Repo, a.Branch, a.Commit)
 }
+
+func (a *App) FullName() string {
+	return fmt.Sprintf("%s/%s", a.Org, a.Repo)
+}

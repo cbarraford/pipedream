@@ -39,6 +39,9 @@ func (g *GithubService) Name() string {
 func (g *GithubService) GetReference(ref string) (string, error) {
 	ref = fmt.Sprintf("heads/%s", ref)
 	reference, _, err := g.Client.Git.GetRef(ctx, "cbarraford", "pipedream-simple", ref)
+	if err != nil {
+		return "", err
+	}
 	return *reference.Object.SHA, err
 }
 
@@ -53,6 +56,15 @@ func (g *GithubService) CreateStatus(ref string, state string) error {
 
 	_, _, err := g.Client.Repositories.CreateStatus(ctx, "cbarraford", "pipedream-simple", ref, repoStatus)
 	return err
+}
+
+func (g *GithubService) ListOpenPullRequests(org, repo string) ([]*github.PullRequest, error) {
+	opts := github.PullRequestListOptions{}
+	pulls, _, err := g.Client.PullRequests.List(ctx, org, repo, &opts)
+	if err != nil {
+		return nil, err
+	}
+	return pulls, err
 }
 
 func (g *GithubService) ProperHook() *github.Hook {

@@ -25,7 +25,6 @@ type Handler struct {
 	provider    providers.Provider
 	lastRequest LastRequest
 	github      gh.GithubService
-	reserved    *Reserved
 }
 
 func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubService) *gin.Engine {
@@ -33,23 +32,20 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 	r.LoadHTMLGlob("templates/*.tmpl")
 
 	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
-	reserved := NewReserved(provider)
-	if err := reserved.Setup(conf); err != nil {
-		log.Fatal(err)
-	}
 
 	handler := Handler{
 		provider: provider,
 		lastRequest: LastRequest{
 			idle:     idle,
 			repos:    make(map[string]time.Time),
-			reserved: reserved,
+			pulls:    make(map[string]bool),
+			alwaysOn: make(map[string][]string),
+			github:   g,
 		},
-		github:   g,
-		reserved: reserved,
+		github: g,
 	}
 
-	if err := handler.lastRequest.Setup(provider); err != nil {
+	if err := handler.lastRequest.Setup(provider, conf); err != nil {
 		log.Fatal(err)
 	}
 
@@ -106,10 +102,8 @@ func (h *Handler) getHook(c *gin.Context) {
 		app := apps.NewApp(org, repo, branch, commit)
 
 		if *event.PullRequest.State == "closed" {
-			h.reserved.Remove(app)
 			h.provider.Stop(app)
 		} else {
-			h.reserved.Add(app, true)
 			h.provider.Start(app)
 		}
 	}
