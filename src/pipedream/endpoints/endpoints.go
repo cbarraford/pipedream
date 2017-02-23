@@ -33,7 +33,10 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 	r.LoadHTMLGlob("templates/*.tmpl")
 
 	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
-	reserved := NewReserved(conf, provider)
+	reserved := NewReserved(provider)
+	if err := reserved.Setup(conf); err != nil {
+		log.Fatal(err)
+	}
 
 	handler := Handler{
 		provider: provider,
@@ -46,17 +49,11 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 		reserved: reserved,
 	}
 
-	// populate last request
-	applications, err := provider.ListApps()
-	if err != nil {
+	if err := handler.lastRequest.Setup(provider); err != nil {
 		log.Fatal(err)
-	}
-	for _, app := range applications {
-		handler.lastRequest.AddRequest(app)
 	}
 
 	r.Use(handler.lastRequest.Middleware())
-	handler.lastRequest.StartTicker(provider)
 
 	r.POST("/hooks/:service", handler.getHook)
 	r.GET("/app/:org/:repo/:branch", handler.appRequest)
@@ -86,11 +83,12 @@ func (h *Handler) getHook(c *gin.Context) {
 		// TODO: put this logic into its own function or package
 		parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
-		parts := strings.Split(*event.Ref, "/")
+		parts = strings.Split(*event.Ref, "/")
 		branch := parts[len(parts)-1]
 		app := apps.NewApp(org, repo, branch)
 
-		if h.reserved.IsReserved(app) {
+		isReserved, isPull := h.reserved.IsReserved(app)
+		if isReserved && isPull {
 			// restart the app
 			h.provider.Stop(app)
 			h.provider.Start(app)
@@ -108,7 +106,7 @@ func (h *Handler) getHook(c *gin.Context) {
 		if *event.PullRequest.State == "closed" {
 			h.reserved.Remove(app)
 		} else {
-			h.reserved.Add(app)
+			h.reserved.Add(app, true)
 		}
 	}
 	c.String(http.StatusOK, "OK")

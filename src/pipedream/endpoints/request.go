@@ -17,6 +17,21 @@ type LastRequest struct {
 	reserved *Reserved
 }
 
+func (r *LastRequest) Setup(provider providers.Provider) error {
+	// populate last request
+	applications, err := provider.ListApps()
+	if err != nil {
+		return err
+	}
+	for _, app := range applications {
+		r.AddRequest(app)
+	}
+
+	r.StartTicker(provider)
+
+	return nil
+}
+
 func (r *LastRequest) AddRequest(app apps.App) {
 	key := app.String()
 	r.repos[key] = time.Now()
@@ -58,7 +73,7 @@ func (r *LastRequest) GetStaleApps() [][]string {
 		org, repo, branch := parts[0], parts[1], parts[2]
 		app := apps.NewApp(org, repo, branch)
 
-		if r.reserved.IsReserved(app) {
+		if ok, _ := r.reserved.IsReserved(app); ok {
 			continue
 		}
 

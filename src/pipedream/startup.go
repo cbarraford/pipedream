@@ -31,7 +31,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// setup github hooks
 	githubClient := github.NewClient(
 		conf.Github.Token,
 		conf.General.ServerAddress,
