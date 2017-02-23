@@ -82,7 +82,6 @@ func (h *Handler) getHook(c *gin.Context) {
 	case *github.PingEvent:
 		// do nothing
 	case *github.PushEvent:
-		// TODO: put this logic into its own function or package
 		parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
 		parts = strings.Split(*event.Ref, "/")
@@ -97,7 +96,6 @@ func (h *Handler) getHook(c *gin.Context) {
 		}
 
 	case *github.PullRequestEvent:
-		// TODO: put this logic into its own function or package
 		// detect app
 		parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
