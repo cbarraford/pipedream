@@ -52,8 +52,6 @@ func (r *LastRequest) StartTicker(provider providers.Provider) {
 		for _ = range ticker.C {
 			stale := r.GetStaleApps()
 			for _, app := range stale {
-				org, repo, branch := app[0], app[1], app[2]
-				app := apps.NewApp(org, repo, branch)
 				err := provider.Stop(app)
 				if err != nil {
 					log.Printf("Error stopping app: %+v", err)
@@ -65,13 +63,13 @@ func (r *LastRequest) StartTicker(provider providers.Provider) {
 	}()
 }
 
-func (r *LastRequest) GetStaleApps() [][]string {
-	stale := make([][]string, 0)
+func (r *LastRequest) GetStaleApps() []apps.App {
+	stale := make([]apps.App, 0)
 	for repo, lastRequest := range r.repos {
 		// skip apps that are "alwaysOn"
 		parts := strings.Split(repo, ".")
-		org, repo, branch := parts[0], parts[1], parts[2]
-		app := apps.NewApp(org, repo, branch)
+		org, repo, branch, commit := parts[0], parts[1], parts[2], parts[3]
+		app := apps.NewApp(org, repo, branch, commit)
 
 		if ok, _ := r.reserved.IsReserved(app); ok {
 			continue
@@ -79,7 +77,7 @@ func (r *LastRequest) GetStaleApps() [][]string {
 
 		duration := time.Since(lastRequest)
 		if duration > r.idle {
-			stale = append(stale, parts)
+			stale = append(stale, app)
 		}
 	}
 	return stale
@@ -90,8 +88,9 @@ func (r LastRequest) Middleware() gin.HandlerFunc {
 		org := c.Param("org")
 		repo := c.Param("repo")
 		branch := c.Param("branch")
-		if org != "" && repo != "" && branch != "" {
-			app := apps.NewApp(org, repo, branch)
+		commit := c.Param("commit")
+		if org != "" && repo != "" && commit != "" {
+			app := apps.NewApp(org, repo, branch, commit)
 			r.AddRequest(app)
 		}
 	}

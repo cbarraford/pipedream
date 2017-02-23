@@ -106,7 +106,7 @@ func (p Docker) listApps() (applications []apps.App, err error) {
 		name := strings.Trim(container.Names[0], "/")
 		parts := strings.Split(name, ".")
 		if len(parts) > 2 {
-			app := apps.NewApp(parts[0], parts[1], parts[2])
+			app := apps.NewApp(parts[0], parts[1], "", parts[2])
 			applications = append(applications, app)
 		}
 	}
@@ -122,8 +122,8 @@ func (p Docker) createContainer(app apps.App) (*docker.Container, error) {
 		AttachStdout: true,
 		AttachStdin:  true,
 		Image:        "simple", // TODO: make this configurable
-		Hostname:     app.String(),
-		Cmd:          []string{app.Branch},
+		Hostname:     p.containerName(app),
+		Cmd:          []string{app.Commit},
 	}
 
 	// default restart policy
@@ -141,7 +141,7 @@ func (p Docker) createContainer(app apps.App) (*docker.Container, error) {
 		Privileged:      true,
 		RestartPolicy:   restart,
 	}
-	opts := docker.CreateContainerOptions{Name: app.String(), Config: &containerConfig, HostConfig: &contHostConfig}
+	opts := docker.CreateContainerOptions{Name: p.containerName(app), Config: &containerConfig, HostConfig: &contHostConfig}
 	return p.client.CreateContainer(opts)
 }
 
@@ -151,14 +151,14 @@ func (p Docker) startContainer(container *docker.Container) error {
 
 func (p Docker) removeContainer(app apps.App) error {
 	config := docker.RemoveContainerOptions{
-		ID:    app.String(),
+		ID:    p.containerName(app),
 		Force: true,
 	}
 	return p.client.RemoveContainer(config)
 }
 
 func (p Docker) getContainer(app apps.App) (*docker.Container, bool) {
-	container, err := p.client.InspectContainer(app.String())
+	container, err := p.client.InspectContainer(p.containerName(app))
 	if err != nil {
 		log.Printf("Could not get container: %+v", err)
 		return container, false
@@ -168,7 +168,7 @@ func (p Docker) getContainer(app apps.App) (*docker.Container, bool) {
 
 func (p Docker) getLogs(w *io.PipeWriter, app apps.App) error {
 	go p.client.Logs(docker.LogsOptions{
-		Container:    app.String(),
+		Container:    p.containerName(app),
 		OutputStream: w,
 		ErrorStream:  w,
 		Stdout:       true,
@@ -179,4 +179,8 @@ func (p Docker) getLogs(w *io.PipeWriter, app apps.App) error {
 		//Timestamps:   true,
 	})
 	return nil
+}
+
+func (p Docker) containerName(app apps.App) string {
+	return fmt.Sprintf("%s.%s.%s", app.Org, app.Repo, app.Commit)
 }

@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>Waiting for {{ .org }}/{{ .repo }}/{{ .branch }}....</title>
+        <title>Waiting for {{ .org }}/{{ .repo }}/{{ .commit }}....</title>
         <script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
@@ -22,11 +22,11 @@
             if ( getParameterByName("redirect") != "false" ) {
                 setInterval(
                     function() {
-                        $.getJSON("/health/{{ .org }}/{{ .repo }}/{{ .branch }}",
+                        $.getJSON("/health/{{ .org }}/{{ .repo }}/{{ .commit }}",
                         function(json){ 
                             if (json.up) {
                                 // this app is now up (available), redirect to it
-                                window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .branch }}';
+                                window.location.href = '/appByCommit/{{ .org }}/{{ .repo }}/{{ .commit }}';
                             }
                         });
                     }, 5000);
@@ -35,7 +35,7 @@
             // stream app logs to the browser
             // TODO: Support xhr polling for browsers that don't support server-sent events
             // https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
-            var source = new EventSource('/logs/{{ .org }}/{{ .repo }}/{{ .branch }}');
+            var source = new EventSource('/logs/{{ .org }}/{{ .repo }}/{{ .commit }}');
             source.addEventListener('log', function(e) {
                 var autoscroll = (window.innerHeight + window.scrollY) >= document.body.scrollHeight
                 $("#logs").append(e.data + "<br />")
@@ -49,11 +49,11 @@
         <nav class="navbar navbar-default navbar-fixed-top">
             <div class="container-fluid">
                 <div class="navbar-header">
-                    <a class="navbar-brand" href="#">{{ .org }}/{{ .repo }}: {{ .branch }}</a>
+                    <a class="navbar-brand" href="#">{{ .org }}/{{ .repo }}: {{ .commit }}</a>
 
                     <ul class="nav navbar-nav navbar-right pull-right">
                         <li>
-                            <a href="/app/{{ .org }}/{{ .repo }}/{{ .branch }}" class="">Refresh</a>
+                            <a href="/appByCommit/{{ .org }}/{{ .repo }}/{{ .commit }}" class="">Refresh</a>
                         </li>
                     </ul>
                 </div>

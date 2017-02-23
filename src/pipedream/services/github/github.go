@@ -36,6 +36,25 @@ func (g *GithubService) Name() string {
 	return "pipedream"
 }
 
+func (g *GithubService) GetReference(ref string) (string, error) {
+	ref = fmt.Sprintf("heads/%s", ref)
+	reference, _, err := g.Client.Git.GetRef(ctx, "cbarraford", "pipedream-simple", ref)
+	return *reference.Object.SHA, err
+}
+
+func (g *GithubService) CreateStatus(ref string, state string) error {
+	description := "Pipedream Instance"
+	url := fmt.Sprintf("http://localhost:8080/appByCommit/cbarraford/pipedream-simple/%s", ref)
+	repoStatus := &github.RepoStatus{
+		State:       &state,
+		TargetURL:   &url,
+		Description: &description,
+	}
+
+	_, _, err := g.Client.Repositories.CreateStatus(ctx, "cbarraford", "pipedream-simple", ref, repoStatus)
+	return err
+}
+
 func (g *GithubService) ProperHook() *github.Hook {
 	name := "web"
 	url := fmt.Sprintf("%s/hooks/github", g.ServerAddress)

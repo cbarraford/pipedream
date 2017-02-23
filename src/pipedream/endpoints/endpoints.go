@@ -56,10 +56,15 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 	r.Use(handler.lastRequest.Middleware())
 
 	r.POST("/hooks/:service", handler.getHook)
-	r.GET("/app/:org/:repo/:branch", handler.appRequest)
-	r.GET("/logs/:org/:repo/:branch", handler.getLogs)
-	r.GET("/wait/:org/:repo/:branch", handler.wait)
-	r.GET("/health/:org/:repo/:branch", handler.health)
+
+	r.GET("/app/:org/:repo/:branch", handler.branchRequest)
+	r.GET("/app/:org/:repo/:branch/*path", handler.branchRequest)
+	r.GET("/appByCommit/:org/:repo/:commit", handler.commitRequest)
+	r.GET("/appByCommit/:org/:repo/:commit/*path", handler.commitRequest)
+
+	r.GET("/logs/:org/:repo/:commit", handler.getLogs)
+	r.GET("/wait/:org/:repo/:commit", handler.wait)
+	r.GET("/health/:org/:repo/:commit", handler.health)
 
 	return r
 }
@@ -81,17 +86,13 @@ func (h *Handler) getHook(c *gin.Context) {
 		// do nothing
 	case *github.PushEvent:
 		// TODO: put this logic into its own function or package
-		parts := strings.Split(*event.Repo.FullName, "/")
+		/*parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
 		parts = strings.Split(*event.Ref, "/")
-		branch := parts[len(parts)-1]
-		app := apps.NewApp(org, repo, branch)
+		branch := parts[len(parts)-1]*/
 
-		isReserved, isPull := h.reserved.IsReserved(app)
-		if isReserved && isPull {
-			// restart the app
-			h.provider.Stop(app)
-			h.provider.Start(app)
+		if err := h.github.CreateStatus(*event.Commits[0].ID, "success"); err != nil {
+			log.Printf("%+v", err)
 		}
 
 	case *github.PullRequestEvent:
@@ -101,12 +102,15 @@ func (h *Handler) getHook(c *gin.Context) {
 		org, repo := parts[0], parts[1]
 		parts = strings.Split(*event.PullRequest.Head.Label, ":")
 		branch := parts[1]
-		app := apps.NewApp(org, repo, branch)
+		commit := *event.PullRequest.Head.SHA
+		app := apps.NewApp(org, repo, branch, commit)
 
 		if *event.PullRequest.State == "closed" {
 			h.reserved.Remove(app)
+			h.provider.Stop(app)
 		} else {
 			h.reserved.Add(app, true)
+			h.provider.Start(app)
 		}
 	}
 	c.String(http.StatusOK, "OK")
@@ -116,7 +120,8 @@ func (h *Handler) getApp(c *gin.Context) apps.App {
 	org := c.Param("org")
 	repo := c.Param("repo")
 	branch := c.Param("branch")
-	return apps.NewApp(org, repo, branch)
+	commit := c.Param("commit")
+	return apps.NewApp(org, repo, branch, commit)
 }
 
 func (h *Handler) health(c *gin.Context) {
@@ -137,14 +142,32 @@ func (h *Handler) wait(c *gin.Context) {
 		"org":    app.Org,
 		"repo":   app.Repo,
 		"branch": app.Branch,
+		"commit": app.Commit,
 	})
 }
 
-func (h *Handler) appRequest(c *gin.Context) {
+func (h *Handler) branchRequest(c *gin.Context) {
+	path := c.Param("path")
+	org := c.Param("org")
+	repo := c.Param("repo")
+	branch := c.Param("branch")
+	commit, err := h.github.GetReference(branch)
+	if err != nil {
+		log.Printf("Error getting git reference: %+v", err)
+	}
+	app := apps.NewApp(org, repo, branch, commit)
+
+	path = fmt.Sprintf("/appByCommit/%s/%s/%s/%s", app.Org, app.Repo, app.Commit, path)
+	c.Redirect(http.StatusTemporaryRedirect, path)
+}
+
+func (h *Handler) commitRequest(c *gin.Context) {
 	app := h.getApp(c)
+	path := c.Param("path")
 
 	url := c.Request.URL
 	ok := h.provider.IsAvailable(url, app)
+	url.Path = path
 	if ok {
 		h.proxy(c, url)
 		return
@@ -152,8 +175,9 @@ func (h *Handler) appRequest(c *gin.Context) {
 		if err := h.provider.Start(app); err != nil {
 			log.Printf("Couldn't start: %+v", err)
 		}
-		path := fmt.Sprintf("/wait/%s/%s/%s", app.Org, app.Repo, app.Branch)
-		c.Redirect(http.StatusTemporaryRedirect, path)
+		h.lastRequest.AddRequest(app)
+		waitPath := fmt.Sprintf("/wait/%s/%s/%s", app.Org, app.Repo, app.Commit)
+		c.Redirect(http.StatusTemporaryRedirect, waitPath)
 	}
 }
 

@@ -27,7 +27,7 @@ func (r *Reserved) Setup(conf config.Config) error {
 		parts := strings.Split(name, "/")
 		org, repo := parts[0], parts[1]
 		for _, branch := range repoConfig.AlwaysOn {
-			app := apps.NewApp(org, repo, branch)
+			app := apps.NewApp(org, repo, branch, "_")
 			r.Add(app, false)
 		}
 	}
