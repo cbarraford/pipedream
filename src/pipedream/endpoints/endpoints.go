@@ -41,11 +41,12 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 			pulls:    make(map[string]bool),
 			alwaysOn: make(map[string][]string),
 			github:   g,
+			config:   conf,
 		},
 		github: g,
 	}
 
-	if err := handler.lastRequest.Setup(provider, conf); err != nil {
+	if err := handler.lastRequest.Setup(provider); err != nil {
 		log.Fatal(err)
 	}
 
@@ -82,12 +83,12 @@ func (h *Handler) getHook(c *gin.Context) {
 		// do nothing
 	case *github.PushEvent:
 		// TODO: put this logic into its own function or package
-		/*parts := strings.Split(*event.Repo.FullName, "/")
+		parts := strings.Split(*event.Repo.FullName, "/")
 		org, repo := parts[0], parts[1]
-		parts = strings.Split(*event.Ref, "/")
-		branch := parts[len(parts)-1]*/
+		//parts = strings.Split(*event.Ref, "/")
+		//branch := parts[len(parts)-1]*/
 
-		if err := h.github.CreateStatus(*event.Commits[0].ID, "success"); err != nil {
+		if err := h.github.CreateStatus(org, repo, *event.Commits[0].ID, "success"); err != nil {
 			log.Printf("%+v", err)
 		}
 
@@ -145,7 +146,7 @@ func (h *Handler) branchRequest(c *gin.Context) {
 	org := c.Param("org")
 	repo := c.Param("repo")
 	branch := c.Param("branch")
-	commit, err := h.github.GetReference(branch)
+	commit, err := h.github.GetReference(org, repo, branch)
 	if err != nil {
 		log.Printf("Error getting git reference: %+v", err)
 	}

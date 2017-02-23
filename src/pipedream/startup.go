@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"strings"
 
 	"pipedream/config"
 	"pipedream/endpoints"
@@ -36,7 +37,12 @@ func main() {
 		conf.General.ServerAddress,
 		conf.Github.Secret,
 	)
-	if err := githubClient.Setup(); err != nil {
+	repos := make([][]string, 0)
+	for name, _ := range conf.Repository {
+		parts := strings.Split(name, "/")
+		repos = append(repos, parts)
+	}
+	if err := githubClient.Setup(repos); err != nil {
 		log.Fatal(err)
 	}
 

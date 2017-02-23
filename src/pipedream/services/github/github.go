@@ -36,25 +36,25 @@ func (g *GithubService) Name() string {
 	return "pipedream"
 }
 
-func (g *GithubService) GetReference(ref string) (string, error) {
+func (g *GithubService) GetReference(org, repo, ref string) (string, error) {
 	ref = fmt.Sprintf("heads/%s", ref)
-	reference, _, err := g.Client.Git.GetRef(ctx, "cbarraford", "pipedream-simple", ref)
+	reference, _, err := g.Client.Git.GetRef(ctx, org, repo, ref)
 	if err != nil {
 		return "", err
 	}
 	return *reference.Object.SHA, err
 }
 
-func (g *GithubService) CreateStatus(ref string, state string) error {
+func (g *GithubService) CreateStatus(org, repo, ref string, state string) error {
 	description := "Pipedream Instance"
-	url := fmt.Sprintf("http://localhost:8080/appByCommit/cbarraford/pipedream-simple/%s", ref)
+	url := fmt.Sprintf("http://localhost:8080/appByCommit/%s/%s/%s", org, repo, ref)
 	repoStatus := &github.RepoStatus{
 		State:       &state,
 		TargetURL:   &url,
 		Description: &description,
 	}
 
-	_, _, err := g.Client.Repositories.CreateStatus(ctx, "cbarraford", "pipedream-simple", ref, repoStatus)
+	_, _, err := g.Client.Repositories.CreateStatus(ctx, org, repo, ref, repoStatus)
 	return err
 }
 
@@ -84,22 +84,24 @@ func (g *GithubService) ProperHook() *github.Hook {
 	}
 }
 
-func (g *GithubService) Setup() error {
-	hook, err := g.GetHook()
-	if err == nil {
-		// hook exists, update it
-		_ = hook
-	} else {
-		// hook DOES NOT exists, create it
-		return g.CreateHook()
+func (g *GithubService) Setup(repos [][]string) error {
+	for _, r := range repos {
+		hook, err := g.GetHook(r[0], r[1])
+		if err == nil {
+			// hook exists, update it
+			_ = hook
+		} else {
+			// hook DOES NOT exists, create it
+			return g.CreateHook(r[0], r[1])
+		}
 	}
 	return nil
 }
 
-func (g *GithubService) GetHook() (*github.Hook, error) {
+func (g *GithubService) GetHook(org, repo string) (*github.Hook, error) {
 	listOptions := github.ListOptions{}
 	hooks, _, err := g.Client.Repositories.ListHooks(
-		ctx, "cbarraford", "pipedream-simple", &listOptions,
+		ctx, org, repo, &listOptions,
 	)
 	if err != nil {
 		return &noHook, err
@@ -115,11 +117,11 @@ func (g *GithubService) GetHook() (*github.Hook, error) {
 	return &noHook, errors.New("Hook not found")
 }
 
-func (g *GithubService) CreateHook() error {
+func (g *GithubService) CreateHook(org, repo string) error {
 	_, _, err := g.Client.Repositories.CreateHook(
 		ctx,
-		"cbarraford",
-		"pipedream-simple",
+		org,
+		repo,
 		g.ProperHook(),
 	)
 	return err

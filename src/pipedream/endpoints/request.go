@@ -20,9 +20,10 @@ type LastRequest struct {
 	pulls    map[string]bool
 	alwaysOn map[string][]string
 	github   github.GithubService
+	config   config.Config
 }
 
-func (r *LastRequest) Setup(provider providers.Provider, conf config.Config) error {
+func (r *LastRequest) Setup(provider providers.Provider) error {
 	// populate last request
 	applications, err := provider.ListApps()
 	if err != nil {
@@ -32,7 +33,7 @@ func (r *LastRequest) Setup(provider providers.Provider, conf config.Config) err
 		r.AddRequest(app)
 	}
 
-	for name, repoConfig := range conf.Repository {
+	for name, repoConfig := range r.config.Repository {
 		r.alwaysOn[name] = repoConfig.AlwaysOn
 	}
 
@@ -103,21 +104,25 @@ func (r *LastRequest) filterReserved(stale []apps.App) []apps.App {
 	}
 	reserved := make([]apps.App, 0)
 
-	pulls, _ := r.github.ListOpenPullRequests("cbarraford", "pipedream-simple")
-	for _, pull := range pulls {
-		parts := strings.Split(*pull.Head.Label, ":")
-		branch := parts[1]
-		commit := *pull.Head.SHA
-		app := apps.NewApp("cbarraford", "pipedream-simple", branch, commit)
+	for name, _ := range r.config.Repository {
+		parts := strings.Split(name, "/")
+		org, repo := parts[0], parts[1]
+		pulls, _ := r.github.ListOpenPullRequests(org, repo)
+		for _, pull := range pulls {
+			parts := strings.Split(*pull.Head.Label, ":")
+			branch := parts[1]
+			commit := *pull.Head.SHA
+			app := apps.NewApp(org, repo, branch, commit)
 
-		reserved = append(reserved, app)
+			reserved = append(reserved, app)
+		}
 	}
 
 	for k, branches := range r.alwaysOn {
 		parts := strings.Split(k, "/")
 		org, repo := parts[0], parts[1]
 		for _, branch := range branches {
-			commit, err := r.github.GetReference(branch)
+			commit, err := r.github.GetReference(org, repo, branch)
 			if err != nil {
 				log.Printf("Error getting git reference: %+v", err)
 			}
@@ -130,7 +135,6 @@ func (r *LastRequest) filterReserved(stale []apps.App) []apps.App {
 		shouldFilter := false
 		for _, b := range reserved {
 			if a.Org == b.Org && a.Repo == b.Repo && a.Commit == b.Commit {
-				log.Printf("Filtered: %+v", a)
 				shouldFilter = true
 			}
 		}
