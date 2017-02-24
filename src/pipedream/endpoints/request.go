@@ -132,9 +132,11 @@ func (r *LastRequest) filterReserved(stale []apps.App) []apps.App {
 
 	filtered := make([]apps.App, 0)
 	for _, a := range stale {
+		astr := strings.ToLower(fmt.Sprintf("%s.%s.%s", a.Org, a.Repo, a.Commit))
 		shouldFilter := false
 		for _, b := range reserved {
-			if a.Org == b.Org && a.Repo == b.Repo && a.Commit == b.Commit {
+			bstr := strings.ToLower(fmt.Sprintf("%s.%s.%s", b.Org, b.Repo, b.Commit))
+			if astr == bstr {
 				shouldFilter = true
 			}
 		}
