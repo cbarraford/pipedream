@@ -26,7 +26,7 @@
                         function(json){ 
                             if (json.up) {
                                 // this app is now up (available), redirect to it
-                                window.location.href = '/appByCommit/{{ .org }}/{{ .repo }}/{{ .commit }}';
+                                window.location.href = '/app/{{ .org }}/{{ .repo }}/{{ .commit }}';
                             }
                         });
                     }, 4000);
@@ -53,7 +53,7 @@
 
                     <ul class="nav navbar-nav navbar-right pull-right">
                         <li>
-                            <a href="/appByCommit/{{ .org }}/{{ .repo }}/{{ .commit }}" class="">Refresh</a>
+                            <a href="/app/{{ .org }}/{{ .repo }}/{{ .commit }}" class="">Refresh</a>
                         </li>
                     </ul>
                 </div>

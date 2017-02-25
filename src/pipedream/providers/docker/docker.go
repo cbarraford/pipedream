@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url"
+	"net/http"
 	"strings"
-	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 
 	"pipedream/apps"
 	"pipedream/config"
+	"pipedream/providers"
 )
 
 type Docker struct {
@@ -59,8 +59,31 @@ func (p Docker) Stop(app apps.App) error {
 	return p.removeContainer(app)
 }
 
-func (p Docker) IsAvailable(url *url.URL, app apps.App) bool {
-	// does container exist?
+func (p Docker) State(app apps.App) providers.State {
+	req, _ := http.NewRequest("GET", "", nil)
+
+	ok := p.ModifyURL(req, app)
+	if !ok {
+		return providers.AppDown
+	}
+
+	repoConf, _ := p.conf.GetRepo(app.Org, app.Repo)
+
+	req.URL.Path = repoConf.HealthCheckPath
+	response, err := http.Get(req.URL.String())
+	if err != nil {
+		return providers.AppDown
+	}
+
+	// check that we have a 200 response
+	if response.StatusCode >= 300 {
+		return providers.AppDown
+	}
+
+	return providers.AppUp
+}
+
+func (p Docker) ModifyURL(req *http.Request, app apps.App) bool {
 	container, ok := p.getContainer(app)
 	if !ok {
 		return false
@@ -75,15 +98,16 @@ func (p Docker) IsAvailable(url *url.URL, app apps.App) bool {
 	if container.NetworkSettings == nil {
 		return false
 	}
+
 	for _, k := range container.NetworkSettings.Ports {
 		port := k[0].HostPort
-		url.Scheme = "http"
 		host := p.conf.General.DockerAddress
 		if host == "" {
 			host = "localhost"
 		}
-		url.Host = fmt.Sprintf("%s:%s", host, port)
-		time.Sleep(2 * time.Second) // give the port an extra couple seconds to ready itself
+
+		req.URL.Scheme = "http"
+		req.URL.Host = fmt.Sprintf("%s:%s", host, port)
 		return true
 	}
 

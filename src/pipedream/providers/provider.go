@@ -2,9 +2,16 @@ package providers
 
 import (
 	"io"
-	"net/url"
+	"net/http"
 
 	"pipedream/apps"
+)
+
+type State int
+
+const (
+	AppDown State = iota
+	AppUp   State = iota
 )
 
 // Provider is the backend that application run within. We use an interface so
@@ -19,9 +26,11 @@ type Provider interface {
 	// Stop app
 	Stop(app apps.App) error
 
-	// Is app available for traffic
-	// If app is available, url should be updated to proxy location
-	IsAvailable(url *url.URL, app apps.App) bool
+	// Current state of app
+	State(app apps.App) State
+
+	// Get url to application
+	ModifyURL(req *http.Request, app apps.App) bool
 
 	// Get application logs
 	GetLogs(w *io.PipeWriter, app apps.App) error

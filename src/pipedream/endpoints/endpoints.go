@@ -54,10 +54,8 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 
 	r.POST("/hooks/:service", handler.getHook)
 
-	r.GET("/app/:org/:repo/:branch", handler.branchRequest)
-	r.GET("/app/:org/:repo/:branch/*path", handler.branchRequest)
-	r.GET("/appByCommit/:org/:repo/:commit", handler.commitRequest)
-	r.GET("/appByCommit/:org/:repo/:commit/*path", handler.commitRequest)
+	r.Any("/app/:org/:repo/:commit", handler.commitRequest)
+	r.Any("/app/:org/:repo/:commit/*path", handler.commitRequest)
 
 	r.GET("/logs/:org/:repo/:commit", handler.getLogs)
 	r.GET("/wait/:org/:repo/:commit", handler.wait)
@@ -90,7 +88,7 @@ func (h *Handler) getHook(c *gin.Context) {
 		app := apps.NewApp(org, repo, branch, commit)
 
 		serverAddress := h.lastRequest.config.General.ServerAddress
-		url := fmt.Sprintf("%s/appByCommit/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
+		url := fmt.Sprintf("%s/app/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
 		if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
 			log.Printf("%+v", err)
 		}
@@ -123,7 +121,11 @@ func (h *Handler) getApp(c *gin.Context) apps.App {
 
 func (h *Handler) health(c *gin.Context) {
 	app := h.getApp(c)
-	up := h.provider.IsAvailable(&url.URL{}, app)
+	state := h.provider.State(app)
+	up := false
+	if state == providers.AppUp {
+		up = true
+	}
 	requestTime := h.lastRequest.Get(app)
 
 	c.JSON(200, gin.H{
@@ -143,30 +145,24 @@ func (h *Handler) wait(c *gin.Context) {
 	})
 }
 
-func (h *Handler) branchRequest(c *gin.Context) {
-	path := c.Param("path")
-	org := c.Param("org")
-	repo := c.Param("repo")
-	branch := c.Param("branch")
-	commit, err := h.github.GetReference(org, repo, branch)
-	if err != nil {
-		log.Printf("Error getting git reference: %+v", err)
-	}
-	app := apps.NewApp(org, repo, branch, commit)
-
-	path = fmt.Sprintf("/appByCommit/%s/%s/%s/%s", app.Org, app.Repo, app.Commit, path)
-	c.Redirect(http.StatusTemporaryRedirect, path)
-}
-
 func (h *Handler) commitRequest(c *gin.Context) {
 	app := h.getApp(c)
 	path := c.Param("path")
 
-	url := c.Request.URL
-	ok := h.provider.IsAvailable(url, app)
-	url.Path = path
+	originalRequestHeader := h.lastRequest.config.General.OrginalRequestHeader
+	if originalRequestHeader != "" {
+		url := url.URL{
+			Scheme: "http",
+			Host:   c.Request.Host,
+			Path:   c.Request.URL.Path,
+		}
+		c.Request.Header.Set(originalRequestHeader, url.String())
+	}
+
+	ok := h.provider.ModifyURL(c.Request, app)
+	c.Request.URL.Path = path
 	if ok {
-		h.proxy(c, url)
+		h.proxy(c, c.Request.URL)
 		return
 	} else {
 		if err := h.provider.Start(app); err != nil {
@@ -179,10 +175,23 @@ func (h *Handler) commitRequest(c *gin.Context) {
 }
 
 func (h *Handler) proxy(c *gin.Context, url *url.URL) {
+	app := h.getApp(c)
 	director := func(req *http.Request) {
 		req.URL = url
 	}
-	proxy := &httputil.ReverseProxy{Director: director}
+	modResponse := func(w *http.Response) error {
+		if w.StatusCode >= 300 && w.StatusCode < 400 {
+			location := w.Header.Get("Location")
+			// if location is a fully qualified url, don't alter it
+			if strings.HasPrefix(location, "http") {
+				return nil
+			}
+			path := fmt.Sprintf("/app/%s/%s/%s%s", app.Org, app.Repo, app.Commit, location)
+			c.Redirect(w.StatusCode, path)
+		}
+		return nil
+	}
+	proxy := &httputil.ReverseProxy{Director: director, ModifyResponse: modResponse}
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 

@@ -21,17 +21,19 @@ func (d *Duration) UnmarshalText(text []byte) error {
 }
 
 type Repo struct {
-	DefaultBranch string
-	AlwaysOn      []string
-	DockerImage   string
+	DefaultBranch   string
+	AlwaysOn        []string
+	DockerImage     string
+	HealthCheckPath string
 }
 
 type Config struct {
 	General struct {
-		IdleShutdown  Duration
-		ServerAddress string
-		DockerHost    string
-		DockerAddress string
+		IdleShutdown         Duration
+		ServerAddress        string
+		DockerHost           string
+		DockerAddress        string
+		OrginalRequestHeader string
 	}
 	Github struct {
 		Token  string
