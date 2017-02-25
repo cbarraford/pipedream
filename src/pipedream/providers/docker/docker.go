@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 
@@ -19,13 +20,11 @@ type Docker struct {
 }
 
 func NewProvider(conf config.Config) (Docker, error) {
-	// Try to load client from env first, then try unix socket
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		// TODO: make endpoint configurable
-		endpoint := "unix:///var/run/docker.sock"
-		client, err = docker.NewClient(endpoint)
+	endpoint := conf.General.DockerHost
+	if endpoint == "" {
+		endpoint = "unix:///var/run/docker.sock"
 	}
+	client, err := docker.NewClient(endpoint)
 	return Docker{
 		client: client,
 		conf:   conf,
@@ -79,8 +78,12 @@ func (p Docker) IsAvailable(url *url.URL, app apps.App) bool {
 	for _, k := range container.NetworkSettings.Ports {
 		port := k[0].HostPort
 		url.Scheme = "http"
-		// TODO: make this configurable
-		url.Host = fmt.Sprintf("localhost:%s", port)
+		host := p.conf.General.DockerAddress
+		if host == "" {
+			host = "localhost"
+		}
+		url.Host = fmt.Sprintf("%s:%s", host, port)
+		time.Sleep(2 * time.Second) // give the port an extra couple seconds to ready itself
 		return true
 	}
 
@@ -121,7 +124,7 @@ func (p Docker) createContainer(app apps.App) (*docker.Container, error) {
 	containerConfig := docker.Config{
 		AttachStdout: true,
 		AttachStdin:  true,
-		Image:        "simple", // TODO: make this configurable
+		Image:        repoConf.DockerImage,
 		Hostname:     p.containerName(app),
 		Cmd:          []string{app.Commit},
 	}
