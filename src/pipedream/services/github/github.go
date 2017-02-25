@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -88,6 +87,7 @@ func (g *GithubService) Setup(repos [][]string) error {
 		hook, err := g.GetHook(r[0], r[1])
 		if err == nil {
 			// hook exists, update it
+			// TODO: update hook
 			_ = hook
 		} else {
 			// hook DOES NOT exists, create it
@@ -108,7 +108,6 @@ func (g *GithubService) GetHook(org, repo string) (*github.Hook, error) {
 
 	properHook := g.ProperHook()
 	for _, hook := range hooks {
-		log.Printf("Hook: %+v", hook)
 		if hook.Config["url"] == properHook.Config["url"] {
 			return hook, nil
 		}

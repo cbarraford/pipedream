@@ -75,9 +75,8 @@ func (r *LastRequest) StartTicker(provider providers.Provider) {
 				err := provider.Stop(app)
 				if err != nil {
 					log.Printf("Error stopping app: %+v", err)
-				} else {
-					r.RemoveRequest(app)
 				}
+				r.RemoveRequest(app)
 			}
 		}
 	}()
