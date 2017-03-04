@@ -29,6 +29,7 @@ type Repo struct {
 
 type Config struct {
 	General struct {
+		Serve                string
 		IdleShutdown         Duration
 		ServerAddress        string
 		DockerHost           string

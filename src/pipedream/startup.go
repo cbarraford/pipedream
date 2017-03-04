@@ -47,5 +47,5 @@ func main() {
 	}
 
 	r := endpoints.NewHandler(conf, provider, githubClient)
-	r.Run() // listen and serve on 0.0.0.0:8080
+	r.Run(conf.General.Serve)
 }
