@@ -21,6 +21,7 @@ func (d *Duration) UnmarshalText(text []byte) error {
 }
 
 type Repo struct {
+	DefaultRepo     bool
 	DefaultBranch   string
 	AlwaysOn        []string
 	DockerImage     string
@@ -51,6 +52,16 @@ func (c Config) GetRepo(org, repo string) (*Repo, bool) {
 		}
 	}
 	return &Repo{}, false
+}
+
+func (c Config) GetDefaultRepo() (string, string) {
+	for name, repository := range c.Repository {
+		if repository.DefaultRepo {
+			parts := strings.Split(name, "/")
+			return parts[0], parts[1]
+		}
+	}
+	return "", ""
 }
 
 // Reads info from config file
