@@ -179,9 +179,10 @@ func (h *Handler) commitRequest(c *gin.Context) {
 		c.Request.Header.Set(originalRequestHeader, url.String())
 	}
 
+	state := h.provider.State(app)
 	ok := h.provider.ModifyURL(c.Request, app)
 	c.Request.URL.Path = path
-	if ok {
+	if ok && state == providers.AppUp {
 		h.proxy(c, c.Request.URL)
 		return
 	} else {
