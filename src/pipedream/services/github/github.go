@@ -45,11 +45,13 @@ func (g *GithubService) GetReference(org, repo, ref string) (string, error) {
 }
 
 func (g *GithubService) CreateStatus(url, org, repo, ref string, state string) error {
-	description := "Pipedream Instance"
+	label := "Pipedream"
+	description := "Link to an instance of this commit"
 	repoStatus := &github.RepoStatus{
 		State:       &state,
 		TargetURL:   &url,
 		Description: &description,
+		Context:     &label,
 	}
 
 	_, _, err := g.Client.Repositories.CreateStatus(ctx, org, repo, ref, repoStatus)
