@@ -103,7 +103,7 @@ func (h *Handler) getHook(c *gin.Context) {
 		url := fmt.Sprintf("%s/app/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
 		if h.defaultRepo.Org == app.Org && h.defaultRepo.Repo == app.Repo {
 			// if the repo is the default repo, use the default address
-			url = fmt.Sprint("%s/default/%s", serverAddress, app.Commit)
+			url = fmt.Sprintf("%s/default/%s", serverAddress, app.Commit)
 		}
 		if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
 			log.Printf("%+v", err)
