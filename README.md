@@ -21,9 +21,6 @@ automatically.
  * Quick access via git commit status. Pipedream sends a Github commit status
    to each commit giving a quick link from your pull request to view that
 version of your application.
- * Always available branches. Configure specific git branch to always be
-   running an instance of your server (ie `master` or `staging`). Changes to
-these branch will be automatically refreshed with the new commits.
 
 ### Configuration
 Pipedream uses `gcfg` style configuration. Below is an example configuration
@@ -54,12 +51,8 @@ Secret = "shhh nomnomnom"
 # for each supported repository, create one of these
 # The name must be unique and follow "org/repo" naming convention.
 [Repository "cbarraford/pipedream-simple"]
-# if no branch is given, default to this branch
-DefaultBranch = master
-# list of branch to keep always keep running. You may specify this attribute
-# more than once
-AlwaysOn = master
-AlwaysOn = staging
+DockerImage = "simple" # name of docker image to run associated with this
+repository
 ```
 
 ### Providers

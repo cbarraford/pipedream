@@ -15,12 +15,11 @@ import (
 )
 
 type LastRequest struct {
-	repos    map[string]time.Time
-	idle     time.Duration
-	pulls    map[string]bool
-	alwaysOn map[string][]string
-	github   github.GithubService
-	config   config.Config
+	repos  map[string]time.Time
+	idle   time.Duration
+	pulls  map[string]bool
+	github github.GithubService
+	config config.Config
 }
 
 func (r *LastRequest) Setup(provider providers.Provider) error {
@@ -31,10 +30,6 @@ func (r *LastRequest) Setup(provider providers.Provider) error {
 	}
 	for _, app := range applications {
 		r.AddRequest(app)
-	}
-
-	for name, repoConfig := range r.config.Repository {
-		r.alwaysOn[name] = repoConfig.AlwaysOn
 	}
 
 	r.StartTicker(provider)
@@ -54,16 +49,6 @@ func (r *LastRequest) RemoveRequest(app apps.App) {
 func (r *LastRequest) Get(app apps.App) time.Time {
 	key := app.String()
 	return r.repos[key]
-}
-
-func (r *LastRequest) AddPull(app apps.App) {
-	key := fmt.Sprintf("%s/%s/%s", app.Org, app.Repo, app.Branch)
-	r.pulls[key] = true
-}
-
-func (r *LastRequest) RemovePull(app apps.App) {
-	key := fmt.Sprintf("%s/%s/%s", app.Org, app.Repo, app.Branch)
-	delete(r.pulls, key)
 }
 
 func (r *LastRequest) StartTicker(provider providers.Provider) {
@@ -114,18 +99,6 @@ func (r *LastRequest) filterReserved(stale []apps.App) []apps.App {
 			app := apps.NewApp(org, repo, branch, commit)
 
 			reserved = append(reserved, app)
-		}
-	}
-
-	for k, branches := range r.alwaysOn {
-		parts := strings.Split(k, "/")
-		org, repo := parts[0], parts[1]
-		for _, branch := range branches {
-			commit, err := r.github.GetReference(org, repo, branch)
-			if err != nil {
-				log.Printf("Error getting git reference: %+v", err)
-			}
-			reserved = append(reserved, apps.NewApp(org, repo, branch, commit))
 		}
 	}
 

@@ -155,13 +155,6 @@ func (p Docker) createContainer(app apps.App) (*docker.Container, error) {
 
 	// default restart policy
 	restart := docker.NeverRestart()
-	// if this branch is AlwaysOn, set policy accordingly
-	for _, rname := range repoConf.AlwaysOn {
-		if app.Branch == rname {
-			restart = docker.RestartOnFailure(10)
-			break
-		}
-	}
 
 	contHostConfig := docker.HostConfig{
 		PublishAllPorts: true,

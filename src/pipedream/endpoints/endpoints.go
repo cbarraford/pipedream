@@ -25,12 +25,6 @@ type Handler struct {
 	provider    providers.Provider
 	lastRequest LastRequest
 	github      gh.GithubService
-	defaultRepo defaultRepo
-}
-
-type defaultRepo struct {
-	Org  string
-	Repo string
 }
 
 func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubService) *gin.Engine {
@@ -38,9 +32,6 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 	r.LoadHTMLGlob("templates/*.tmpl")
 
 	idle, _ := time.ParseDuration(conf.General.IdleShutdown.String())
-
-	org, repo := conf.GetDefaultRepo()
-	dRepo := defaultRepo{org, repo}
 
 	handler := Handler{
 		lastRequest: LastRequest{
@@ -51,9 +42,8 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 			github:   g,
 			config:   conf,
 		},
-		provider:    provider,
-		github:      g,
-		defaultRepo: dRepo,
+		provider: provider,
+		github:   g,
 	}
 
 	if err := handler.lastRequest.Setup(provider); err != nil {
@@ -64,8 +54,6 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 
 	r.POST("/hooks/:service", handler.getHook)
 
-	r.Any("/default/:commit", handler.commitRequest)
-	r.Any("/default/:commit/*path", handler.commitRequest)
 	r.Any("/app/:org/:repo/:commit", handler.commitRequest)
 	r.Any("/app/:org/:repo/:commit/*path", handler.commitRequest)
 
@@ -101,10 +89,6 @@ func (h *Handler) getHook(c *gin.Context) {
 
 		serverAddress := h.lastRequest.config.General.ServerAddress
 		url := fmt.Sprintf("%s/app/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
-		if h.defaultRepo.Org == app.Org && h.defaultRepo.Repo == app.Repo {
-			// if the repo is the default repo, use the default address
-			url = fmt.Sprintf("%s/default/%s", serverAddress, app.Commit)
-		}
 		if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
 			log.Printf("%+v", err)
 		}
@@ -130,10 +114,6 @@ func (h *Handler) getHook(c *gin.Context) {
 func (h *Handler) getApp(c *gin.Context) apps.App {
 	org := c.Param("org")
 	repo := c.Param("repo")
-	if org == "" || repo == "" {
-		org = h.defaultRepo.Org
-		repo = h.defaultRepo.Repo
-	}
 	branch := c.Param("branch")
 	commit := c.Param("commit")
 	return apps.NewApp(org, repo, branch, commit)
