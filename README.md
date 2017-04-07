@@ -1,31 +1,29 @@
 Pipedream
 =========
 
-Pipedream is development and QA tool to run versioned copies of your
-application on a server. It is closely coupled with GitHub and integrates
-nicely. Pipedream is not intended to run a production server serving traffic
-from outside users/clients. It is a development tool to help QA changes in
-code. Instances of Pipedream are considered transient in nature.
+Pipedream is an open source continuous integration and quality assurance tool
+that runs per-commit copies of your application on demand or triggered by
+Github webhooks.
+
+Each time you open a Github pull request, a running instance of your
+application is started for reviewers and QA members to test your changes on
+a live instance.
 
 ### Features
- * Always available branches. Configure specific git branch to always be
-   running an instance of your server (ie `master` or `staging`). Changes to
-these branch will be automatically refreshed with the new commits.
- * Any version, on demand. Easily launch on demand a specific git branch or
-   commit just by going to the expected url (ie
-`http://pipedream.chad.co/app/cbarraford/pipedream-simple/myFeatureBranch`)
+ * Any version, on demand. Easily launch on demand a specific git commit just
+   by going to the expected url (ie
+`http://pipedream.chad.co/app/cbarraford/pipedream-simple/myCommit`)
  * Pull requests are king. When pull requests are opened/closed, Pipedream
    automatically starts/stops the instance for that branch. Making your change
 readily available for your teammates to verify and test. When new commits are
 added to the branch, the instance is restarted with the new changes
 automatically.
- * Quick acces via git commit status. Pipedream sends a commit status to each
-   commit giving a quick link from your pull request to view that version of
-your application.
- * Run it on your own hardware. Pipedream is open source and free to use.
-   Don't worry about pushing your code or sensitive data outside of your
-environment.
-
+ * Quick access via git commit status. Pipedream sends a Github commit status
+   to each commit giving a quick link from your pull request to view that
+version of your application.
+ * Always available branches. Configure specific git branch to always be
+   running an instance of your server (ie `master` or `staging`). Changes to
+these branch will be automatically refreshed with the new commits.
 
 ### Configuration
 Pipedream uses `gcfg` style configuration. Below is an example configuration
@@ -39,6 +37,12 @@ IdleShutdown = 30m
 
 # The base url to your server.
 ServerAddress = "http://pipedream.chad.co"
+
+# Docker configurations
+# Docker API location
+DockerHost = "tcp://localhost:2323" # defaults to "unix:///var/run/docker.sock"
+# Host address to proxy requests to
+DockerAddress = "localhost"
 
 [Github]
 # Github personal access token. Must have `repo:status`, `repo_deployment`,
