@@ -30,11 +30,14 @@ type Repo struct {
 
 type Config struct {
 	General struct {
-		Serve                string
-		IdleShutdown         Duration
-		ServerAddress        string
-		DockerHost           string
-		DockerAddress        string
+		Serve         string
+		IdleShutdown  Duration
+		ServerAddress string
+		DockerHost    string
+		DockerAddress string
+
+		// Pass the full original request url in a specified header to application.
+		// May be used by running application to generate proper fully qualified redirect URLS
 		OrginalRequestHeader string
 	}
 	Github struct {
