@@ -84,7 +84,7 @@ func (h *Handler) getHook(c *gin.Context) {
 		org, repo := parts[0], parts[1]
 		parts = strings.Split(*event.Ref, "/")
 		branch := parts[len(parts)-1]
-		commit := *event.Commits[0].ID
+		commit := *event.Commits[len(*event.Commits)-1].ID
 		app := apps.NewApp(org, repo, branch, commit)
 
 		serverAddress := h.lastRequest.config.General.ServerAddress
