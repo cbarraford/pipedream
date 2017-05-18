@@ -35,12 +35,11 @@ func NewHandler(conf config.Config, provider providers.Provider, g gh.GithubServ
 
 	handler := Handler{
 		lastRequest: LastRequest{
-			idle:     idle,
-			repos:    make(map[string]time.Time),
-			pulls:    make(map[string]bool),
-			alwaysOn: make(map[string][]string),
-			github:   g,
-			config:   conf,
+			idle:   idle,
+			repos:  make(map[string]time.Time),
+			pulls:  make(map[string]bool),
+			github: g,
+			config: conf,
 		},
 		provider: provider,
 		github:   g,
