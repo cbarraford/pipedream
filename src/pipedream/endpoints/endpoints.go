@@ -83,13 +83,16 @@ func (h *Handler) getHook(c *gin.Context) {
 		org, repo := parts[0], parts[1]
 		parts = strings.Split(*event.Ref, "/")
 		branch := parts[len(parts)-1]
-		commit := *event.Commits[len(*event.Commits)-1].ID
-		app := apps.NewApp(org, repo, branch, commit)
+		if len(event.Commits) > 0 {
+			count := len(event.Commits)
+			commit := *event.Commits[count-1].ID
+			app := apps.NewApp(org, repo, branch, commit)
 
-		serverAddress := h.lastRequest.config.General.ServerAddress
-		url := fmt.Sprintf("%s/app/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
-		if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
-			log.Printf("%+v", err)
+			serverAddress := h.lastRequest.config.General.ServerAddress
+			url := fmt.Sprintf("%s/app/%s/%s/%s", serverAddress, app.Org, app.Repo, app.Commit)
+			if err := h.github.CreateStatus(url, app.Org, app.Repo, *event.Commits[0].ID, "success"); err != nil {
+				log.Printf("%+v", err)
+			}
 		}
 
 	case *github.PullRequestEvent:
